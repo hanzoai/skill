@@ -12,8 +12,8 @@
   "homepage": "https://hanzo.ai",
   "type": "module",
   "bin": {
-    "hanzo-skill": "./dist/cli.js",
-    "skill": "./dist/cli.js"
+    "hanzo-skill": "dist/cli.js",
+    "skill": "dist/cli.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
