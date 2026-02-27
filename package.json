@@ -1,6 +1,6 @@
 {
   "name": "@hanzo/skill",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Install and manage AI agent skills — ~/.hanzo/skills/ as canonical source, symlinked to all agents",
   "keywords": ["ai", "agents", "skills", "mcp", "claude", "cursor", "codex", "hanzo"],
   "license": "MIT",
@@ -18,12 +18,15 @@
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [
-    "dist"
+    "dist",
+    "!dist/**/*.test.*"
   ],
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "prepublishOnly": "npm run build"
+    "test": "npm run build && node --test dist/index.test.js",
+    "test:ci": "npm run build && node --test --test-reporter=spec dist/index.test.js",
+    "prepublishOnly": "npm run build && npm test"
   },
   "devDependencies": {
     "typescript": "^5.7.0",
