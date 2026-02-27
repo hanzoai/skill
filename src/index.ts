@@ -87,7 +87,7 @@ export async function countSkills(dir: string): Promise<number> {
       const catDir = path.join(dir, entry.name)
       try {
         for (const f of await fs.promises.readdir(catDir, { withFileTypes: true })) {
-          if (f.isFile() && f.name.endsWith(".md") && f.name !== "INDEX.md" && f.name !== "README.md") {
+          if (f.isFile() && f.name.endsWith(".md") && f.name !== "SKILL.md" && f.name !== "INDEX.md" && f.name !== "README.md") {
             count++
           }
         }
