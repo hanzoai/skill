@@ -1,4 +1,4 @@
-# LLM.md - Hanzo Skill
+# Hanzo Skill
 
 ## Overview
 Install and manage AI agent skills — ~/.hanzo/skills/ as canonical source, symlinked to all agents
