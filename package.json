@@ -3,7 +3,7 @@
   "version": "1.0.1",
   "description": "Install and manage AI agent skills — ~/.hanzo/skills/ as canonical source, symlinked to all agents",
   "keywords": ["ai", "agents", "skills", "mcp", "claude", "cursor", "codex", "hanzo"],
-  "license": "MIT",
+  "license": "MIT OR Apache-2.0",
   "author": "Hanzo AI <hello@hanzo.ai>",
   "repository": {
     "type": "git",
