@@ -1,8 +1,17 @@
 {
   "name": "@hanzo/skill",
-  "version": "1.0.1",
-  "description": "Install and manage AI agent skills — ~/.hanzo/skills/ as canonical source, symlinked to all agents",
-  "keywords": ["ai", "agents", "skills", "mcp", "claude", "cursor", "codex", "hanzo"],
+  "version": "1.0.2",
+  "description": "Read, check and install AI agent skills.",
+  "keywords": [
+    "ai",
+    "agents",
+    "skills",
+    "mcp",
+    "claude",
+    "cursor",
+    "codex",
+    "hanzo"
+  ],
   "license": "MIT OR Apache-2.0",
   "author": "Hanzo AI <hello@hanzo.ai>",
   "repository": {
@@ -24,12 +33,16 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "test": "npm run build && node --test dist/index.test.js",
-    "test:ci": "npm run build && node --test --test-reporter=spec dist/index.test.js",
+    "test": "npm run build && node --test dist/*.test.js",
+    "test:ci": "npm run build && node --test --test-reporter=spec dist/*.test.js",
     "prepublishOnly": "npm run build && npm test"
   },
   "devDependencies": {
     "typescript": "^5.7.0",
     "@types/node": "^22.0.0"
+  },
+  "dependencies": {
+    "yaml": "^2.6.1",
+    "zod": "^3.24.1"
   }
 }

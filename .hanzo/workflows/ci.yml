@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# One commit is one run. Keying on the ref cancels a build whenever the next
+# push lands, which hides whether any given commit was ever green.
+concurrency:
+  group: ci-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  suite:
+    name: the suite
+    runs-on: [hanzo-build-linux-amd64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install
+        run: npm ci
+
+      # `test` builds first, so this compiles the whole tree — tests included,
+      # which is where four type errors were hiding when the tests lived in a
+      # package that excluded them from tsc and ran them under a runner that
+      # does not typecheck.
+      - name: Test
+        run: npm test
