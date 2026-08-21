@@ -8,10 +8,12 @@
  *   npx @hanzo/skill add hanzoai/skills       Install Hanzo ecosystem skills
  *   npx @hanzo/skill remove bootnode-skills    Remove skills and symlinks
  *   npx @hanzo/skill list                      List installed skills
+ *   npx @hanzo/skill validate <dir>            Check every SKILL.md under dir
  *   npx @hanzo/skill                           Show help
  */
 
-import { addSkills, removeSkills, listSkills, HANZO_SKILLS_DIR, AGENT_SKILL_DIRS } from "./index.js"
+import { addSkills, removeSkills, listSkills, HANZO_SKILLS_DIR, AGENT_SKILL_DIRS } from "./install.js"
+import { scanDir } from "./node.js"
 
 const BOLD = "\x1b[1m"
 const DIM = "\x1b[2m"
@@ -36,6 +38,8 @@ ${BOLD}COMMANDS${RESET}
   add <repo>       Install skills from a GitHub repository
   remove <name>    Remove an installed skill directory
   list             List all installed skills
+  validate <dir>   Read every SKILL.md under dir and report the ones that
+                   cannot be loaded. Exits non-zero if any cannot.
 
 ${BOLD}EXAMPLES${RESET}
   ${CYAN}npx @hanzo/skill add bootnode/skills${RESET}      ${DIM}# Bootnode blockchain APIs${RESET}
@@ -116,6 +120,26 @@ async function main() {
       log(`  ${BOLD}${s.name}${RESET}  ${DIM}${s.count} skills${RESET}`)
     }
     log(`\n${DIM}Symlinked to ${AGENT_SKILL_DIRS.length} agent directories.${RESET}\n`)
+    return
+  }
+
+  if (command === "validate") {
+    // A skill nobody can load is worse than one nobody wrote, because the
+    // catalogue still counts it. This reads each document with the same parser
+    // the loaders use, so a repository can hold itself to that in CI.
+    const dirs = args.slice(1).filter((a) => !a.startsWith("-"))
+    if (dirs.length === 0) { err("Missing directory. Usage: npx @hanzo/skill validate <dir>"); process.exit(1) }
+
+    let valid = 0
+    const bad: Array<{ path: string; message: string }> = []
+    for (const dir of dirs) {
+      const { skills, errors } = await scanDir(dir, { scope: "repo" })
+      valid += skills.length
+      for (const e of errors) bad.push({ path: `${dir}/${e.path}`, message: e.message })
+    }
+    for (const b of bad) log(`${RED}cannot load${RESET} ${b.path}: ${b.message}`)
+    log(`${valid} load, ${bad.length} cannot`)
+    if (bad.length > 0) process.exit(1)
     return
   }
 

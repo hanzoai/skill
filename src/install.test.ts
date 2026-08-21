@@ -14,7 +14,7 @@ import {
   listSkills,
   HANZO_SKILLS_DIR,
   AGENT_SKILL_DIRS,
-} from "./index.js"
+} from "./install.js"
 
 // ── Helpers ──────────────────────────────────────────────
 
