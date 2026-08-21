@@ -92,6 +92,7 @@ jobs:
       - name: Publish
         if: steps.check.outputs.skip != 'true'
         run: |
+          # _auth alone: npm sends it for the registry it is scoped to, and
+          # always-auth stopped being a valid option after npm 6.
           npm config set //pkg.hanzo.ai/:_auth "$NPM_AUTH"
-          npm config set //pkg.hanzo.ai/:always-auth true
           npm publish --access public --no-provenance
