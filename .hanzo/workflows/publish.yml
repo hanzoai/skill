@@ -1,0 +1,62 @@
+name: publish
+
+# Publishes @hanzo/skill when the version in package.json changes on main.
+# A version already on the registry is skipped, so re-runs are safe.
+
+on:
+  push:
+    branches: [main]
+    paths: ['package.json']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: hanzo-build-linux-amd64
+    steps:
+      - uses: actions/checkout@v4
+
+      # The registry is .npmrc's to name, not this file's — one place decides
+      # where our packages live, and it is the same one a developer's `npm
+      # install` reads.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://pkg.hanzo.ai/
+
+      - name: Skip if already published
+        id: check
+        run: |
+          NAME=$(jq -r .name package.json)
+          VER=$(jq -r .version package.json)
+          if curl -fsSL "https://pkg.hanzo.ai/$NAME/$VER" > /dev/null 2>&1; then
+            echo "$NAME@$VER is already on the registry; skipping"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # `test` builds dist/ and then runs the suite — one command for both.
+      # dist/ is gitignored, so publishing without building ships a package
+      # whose every entry point 404s.
+      - name: Test
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          npm ci
+          npm test
+
+      - name: Publish
+        if: steps.check.outputs.skip != 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          # An unset secret reads as the empty string rather than an error, so
+          # without this the publish attempts anonymously and the failure names
+          # the registry instead of the missing credential.
+          if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
+            echo "::error::NPM_TOKEN is unset, so nothing was published. Add it to the hanzoai org secrets."
+            exit 1
+          fi
+          npm publish --access public --no-provenance
