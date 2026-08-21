@@ -47,16 +47,41 @@ jobs:
           npm ci
           npm test
 
-      - name: Publish
+      # The token lives in KMS, which is where our credentials live; the only
+      # thing CI holds is a machine identity to ask with.
+      - name: Read the publish token
         if: steps.check.outputs.skip != 'true'
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          KMS_CLIENT_ID: ${{ secrets.KMS_CLIENT_ID }}
+          KMS_CLIENT_SECRET: ${{ secrets.KMS_CLIENT_SECRET }}
+          KMS_ENDPOINT: ${{ vars.KMS_ENDPOINT || 'https://kms.hanzo.ai' }}
+          KMS_SECRET_ENV: ${{ vars.KMS_SECRET_ENV || 'prod' }}
         run: |
-          # An unset secret reads as the empty string rather than an error, so
-          # without this the publish attempts anonymously and the failure names
-          # the registry instead of the missing credential.
-          if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
-            echo "::error::NPM_TOKEN is unset, so nothing was published. Add it to the hanzoai org secrets."
+          # An absent secret reads as the empty string rather than an error, so
+          # each step below says which credential was missing instead of letting
+          # the publish go anonymous and blaming the registry.
+          if [ -z "$KMS_CLIENT_ID" ] || [ -z "$KMS_CLIENT_SECRET" ]; then
+            echo "::error::KMS machine identity absent. Seed KMS_CLIENT_ID/KMS_CLIENT_SECRET as git.hanzo.ai Actions secrets."
             exit 1
           fi
-          npm publish --access public --no-provenance
+          TOKEN=$(curl -fsS "$KMS_ENDPOINT/v1/kms/auth/login" -H 'Content-Type: application/json' \
+            -d "{\"clientId\":\"$KMS_CLIENT_ID\",\"clientSecret\":\"$KMS_CLIENT_SECRET\"}" \
+            | jq -r '.accessToken // empty')
+          if [ -z "$TOKEN" ]; then
+            echo "::error::KMS login failed at $KMS_ENDPOINT/v1/kms/auth/login."
+            exit 1
+          fi
+          # NPM_TOKEN sits at the org root, so there is no path segment. The read
+          # is org-scoped by the token's owner claim.
+          VAL=$(curl -sS "$KMS_ENDPOINT/v1/kms/secrets/NPM_TOKEN?env=$KMS_SECRET_ENV" \
+            -H "Authorization: Bearer $TOKEN" | jq -r '.value // empty')
+          if [ -z "$VAL" ]; then
+            echo "::error::KMS holds no NPM_TOKEN for env $KMS_SECRET_ENV, so nothing was published."
+            exit 1
+          fi
+          echo "::add-mask::$VAL"
+          echo "NODE_AUTH_TOKEN=$VAL" >> "$GITHUB_ENV"
+
+      - name: Publish
+        if: steps.check.outputs.skip != 'true'
+        run: npm publish --access public --no-provenance
