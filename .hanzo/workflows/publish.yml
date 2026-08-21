@@ -56,6 +56,7 @@ jobs:
           KMS_CLIENT_SECRET: ${{ secrets.KMS_CLIENT_SECRET }}
           KMS_ENDPOINT: ${{ vars.KMS_ENDPOINT || 'https://kms.hanzo.ai' }}
           KMS_SECRET_ENV: ${{ vars.KMS_SECRET_ENV || 'prod' }}
+          PKG_USER: ${{ vars.PKG_USER || 'hanzo' }}
         run: |
           # An absent secret reads as the empty string rather than an error, so
           # each step below says which credential was missing instead of letting
@@ -71,17 +72,26 @@ jobs:
             echo "::error::KMS login failed at $KMS_ENDPOINT/v1/kms/auth/login."
             exit 1
           fi
-          # NPM_TOKEN sits at the org root, so there is no path segment. The read
-          # is org-scoped by the token's owner claim.
-          VAL=$(curl -sS "$KMS_ENDPOINT/v1/kms/secrets/NPM_TOKEN?env=$KMS_SECRET_ENV" \
+          # pkg.hanzo.ai is verdaccio with an htpasswd, so the credential is a
+          # PASSWORD, not a bearer token — the NPM_TOKEN at the org root belongs
+          # to registry.npmjs.org and this registry answers E401 to it. The
+          # password sits beside the htpasswd it hashes to, at /pkg.
+          VAL=$(curl -sS "$KMS_ENDPOINT/v1/kms/secrets/pkg/publish-password?env=$KMS_SECRET_ENV" \
             -H "Authorization: Bearer $TOKEN" | jq -r '.value // empty')
           if [ -z "$VAL" ]; then
-            echo "::error::KMS holds no NPM_TOKEN for env $KMS_SECRET_ENV, so nothing was published."
+            echo "::error::KMS holds no /pkg publish-password for env $KMS_SECRET_ENV, so nothing was published."
             exit 1
           fi
+          # Basic, not a token: verdaccio's adduser endpoint is closed
+          # (max_users: -1), so there is no login to exchange for one.
+          AUTH=$(printf '%s:%s' "$PKG_USER" "$VAL" | base64 | tr -d '\n')
           echo "::add-mask::$VAL"
-          echo "NODE_AUTH_TOKEN=$VAL" >> "$GITHUB_ENV"
+          echo "::add-mask::$AUTH"
+          echo "NPM_AUTH=$AUTH" >> "$GITHUB_ENV"
 
       - name: Publish
         if: steps.check.outputs.skip != 'true'
-        run: npm publish --access public --no-provenance
+        run: |
+          npm config set //pkg.hanzo.ai/:_auth "$NPM_AUTH"
+          npm config set //pkg.hanzo.ai/:always-auth true
+          npm publish --access public --no-provenance
